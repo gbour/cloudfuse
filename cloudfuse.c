@@ -14,6 +14,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <termios.h>
 #include "cloudfsapi.h"
 #include "config.h"
 
@@ -21,6 +22,7 @@
 #define OPTION_SIZE 1024
 
 static int cache_timeout;
+static int interactive = 0;
 
 typedef struct dir_cache
 {
@@ -424,6 +426,33 @@ char *get_home_dir()
   return "~";
 }
 
+int getsecret(char *invite, char *value) {
+  struct termios old, new;
+  printf(invite);
+
+  // turns echo off
+  if(tcgetattr(fileno(stdin), &old) != 0)
+    return -1;
+  new = old,
+  new.c_lflag &= ~ECHO;
+  if(tcsetattr(fileno(stdin), TCSAFLUSH, &new) != 0)
+    return -1;
+
+  // read input
+  char   *buffer = NULL;
+  size_t  alloc = 0;
+  ssize_t nread = getline(&buffer, &alloc, stdin);
+
+  strncpy(value, buffer, (nread <= OPTION_SIZE?nread-1:OPTION_SIZE));
+  free(buffer);
+
+  // restore terminal
+  (void) tcsetattr(fileno(stdin), TCSAFLUSH, &old);
+  printf("\n");
+
+  return 0;
+}
+
 static struct options {
     char username[OPTION_SIZE];
     char tenant[OPTION_SIZE];
@@ -458,6 +487,9 @@ int parse_option(void *data, const char *arg, int key, struct fuse_args *outargs
     return 0;
   if (!strcmp(arg, "-f") || !strcmp(arg, "-d") || !strcmp(arg, "debug"))
     cloudfs_debug(1);
+  else if(!strcmp(arg, "-i"))
+    interactive = 1;
+
   return 1;
 }
 
@@ -477,6 +509,11 @@ int main(int argc, char **argv)
   }
 
   fuse_opt_parse(&args, &options, NULL, parse_option);
+  if(interactive) {
+    getsecret("username > ", options.username);
+    getsecret("password > ", options.password);
+  }
+
 
   cache_timeout = atoi(options.cache_timeout);
 
