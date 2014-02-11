@@ -487,8 +487,10 @@ int parse_option(void *data, const char *arg, int key, struct fuse_args *outargs
     return 0;
   if (!strcmp(arg, "-f") || !strcmp(arg, "-d") || !strcmp(arg, "debug"))
     cloudfs_debug(1);
-  else if(!strcmp(arg, "-i"))
+  else if(!strcmp(arg, "-i")) {
     interactive = 1;
+    return 0;
+  }
 
   return 1;
 }
