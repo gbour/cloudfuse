@@ -537,6 +537,10 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  // mask parameters from ps/top commands
+  if(argc > 1)
+    memset(argv[1], '\0', (argv[argc-1] - argv[1] + strlen(argv[argc-1])));
+
   cloudfs_init();
 
   cloudfs_verify_ssl(!strcasecmp(options.verify_ssl, "true"));
